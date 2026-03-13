@@ -47,6 +47,20 @@ CUSTOMERS = {
         "tier": "Silver",
         "joined": "2024-08-01",
     },
+    "C006": {
+        "id": "C006",
+        "name": "Frank Miller",
+        "email": "frank@example.com",
+        "tier": "Bronze",
+        "joined": "2024-09-12",
+    },
+    "C007": {
+        "id": "C007",
+        "name": "Grace Lee",
+        "email": "grace@example.com",
+        "tier": "Gold",
+        "joined": "2024-10-05",
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -338,6 +352,40 @@ ORDERS = {
         "total": 949.98,
         "status": "processing",
         "ordered_date": _date(0),
+    },
+    "1011": {
+        "id": "1011",
+        "customer_id": "C001",
+        "items": [
+            {"product_id": "P002", "name": "SoundMax Wireless Headphones", "qty": 2, "price": 149.99},
+        ],
+        "total": 299.98,
+        "status": "delivered",
+        "ordered_date": _date(60),
+        "delivered_date": _date(55),
+    },
+    "1012": {
+        "id": "1012",
+        "customer_id": "C006",
+        "items": [
+            {"product_id": "P002", "name": "SoundMax Wireless Headphones", "qty": 1, "price": 149.99},
+            {"product_id": "P008", "name": "TechPack Laptop Backpack", "qty": 1, "price": 79.99},
+        ],
+        "total": 229.98,
+        "status": "delivered",
+        "ordered_date": _date(5),
+        "delivered_date": _date(2),
+    },
+    "1013": {
+        "id": "1013",
+        "customer_id": "C007",
+        "items": [
+            {"product_id": "P002", "name": "SoundMax Wireless Headphones", "qty": 5, "price": 149.99},
+            {"product_id": "P009", "name": "Titan Gaming Laptop", "qty": 1, "price": 2499.00},
+        ],
+        "total": 3248.95,
+        "status": "processing",
+        "ordered_date": _date(1),
     },
 }
 

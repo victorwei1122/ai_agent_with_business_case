@@ -94,8 +94,8 @@ def invoke_product_agent(message: str) -> str:
     """
     Invokes the Product Agent to search for products and recommend them.
     """
-    # Lazy-load LLM to avoid module-level side effects
-    llm = get_llm().bind_tools(product_tools)
+    # Lazy-load LLM (Set temperature=0.7 for creative recommendations)
+    llm = get_llm(temperature=0.7).bind_tools(product_tools)
     
     messages = [
         SystemMessage(content=SYSTEM_PROMPT + "\n\nYou are the specialized **Product Agent**. You help customers find laptops, headphones, desks, and other items to buy. You do NOT look up orders or process refunds."),

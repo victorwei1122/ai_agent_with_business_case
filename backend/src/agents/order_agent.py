@@ -2,8 +2,9 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from langchain_core.tools import tool
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from src.db.database import SessionLocal
-from src.db.models import Order, Customer, Product
+from src.db.models import Order, Customer, Product, OrderItem
 
 @tool
 def db_lookup_order(order_id: str) -> Dict[str, Any]:
@@ -89,21 +90,57 @@ def db_process_refund(order_id: str, reason: str) -> Dict[str, Any]:
     finally:
         db.close()
 
+@tool
+def db_get_sales_analytics(product_name: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Get sales figures and popularity stats for products. 
+    If product_name is provided, returns sales volume for that product.
+    If no product_name is provided, returns a list of top-selling products.
+    """
+    db = SessionLocal()
+    try:
+        if product_name:
+            # Query for specific product sales
+            # We search by name (case-insensitive)
+            count = db.query(func.sum(OrderItem.qty)).join(Product).filter(Product.name.ilike(f"%{product_name}%")).scalar() or 0
+            return {
+                "success": True,
+                "product_name": product_name,
+                "total_units_sold": int(count),
+                "message": f"Our records show {int(count)} units of '{product_name}' have been ordered."
+            }
+        else:
+            # Query for top 5 best selling products
+            top_sales = db.query(
+                Product.id, 
+                Product.name, 
+                func.sum(OrderItem.qty).label('total_qty')
+            ).join(OrderItem).group_by(Product.id).order_by(func.sum(OrderItem.qty).desc()).limit(5).all()
+            
+            results = [{"id": r[0], "name": r[1], "units_sold": int(r[2])} for r in top_sales]
+            return {
+                "success": True,
+                "top_selling_products": results,
+                "message": "Here are the top-selling products based on historical order data."
+            }
+    finally:
+        db.close()
+
 import json
 from src.prompts import SYSTEM_PROMPT
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 from src.agents.llm_utils import get_llm, get_text_content, clean_tool_args
 
-order_tools = [db_lookup_order, db_process_refund]
+order_tools = [db_lookup_order, db_process_refund, db_get_sales_analytics]
 def invoke_order_agent(message: str) -> str:
     """
     Invokes the Order Agent to look up orders and process refunds.
     """
-    # Lazy-load LLM
-    llm = get_llm().bind_tools(order_tools)
+    # Lazy-load LLM (Explicitly set temperature=0 for accuracy)
+    llm = get_llm(temperature=0).bind_tools(order_tools)
     
     messages = [
-        SystemMessage(content=SYSTEM_PROMPT + "\n\nYou are the specialized **Order Agent**. You help customers track orders and process refunds. You do NOT recommend products."),
+        SystemMessage(content=SYSTEM_PROMPT + "\n\nYou are the specialized **Order Agent**. You help customers track orders, process refunds, and provide sales analytics (e.g., best-selling products or sales counts). You do NOT directly recommend products for their features, but you provide the data to back up recommendations."),
         HumanMessage(content=message)
     ]
     

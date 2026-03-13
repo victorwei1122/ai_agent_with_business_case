@@ -3,11 +3,14 @@ from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 
-# Read from environment strictly for PostgreSQL
-SQLALCHEMY_DATABASE_URL = os.environ["DATABASE_URL"]
+# Read from environment strictly for PostgreSQL, fallback to sqlite for local dev/testing
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./ecommerce.db")
 
-# Create the SQLAlchemy engine for Postgres
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+# Create the SQLAlchemy engine
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # Create a scoped session factory
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

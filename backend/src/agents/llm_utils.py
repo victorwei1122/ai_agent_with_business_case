@@ -76,13 +76,21 @@ def get_text_content(response):
 def clean_tool_args(args: Any) -> Any:
     """
     Recursively cleans tool arguments.
-    Specifically, converts empty dictionaries {} to None, which some local LLMs
-    (like Ollama) use to represent missing or optional string arguments.
+    Ensures that empty dictionaries passed as field values are converted to None, 
+    but keeps the root dictionary as a dictionary (even if empty) to satisfy 
+    Pydantic's requirement for tool inputs.
     """
-    if isinstance(args, dict):
-        if not args:
-            return None
-        return {k: clean_tool_args(v) for k, v in args.items()}
-    elif isinstance(args, list):
-        return [clean_tool_args(v) for v in args]
-    return args
+    if not isinstance(args, dict):
+        return args
+        
+    cleaned = {}
+    for k, v in args.items():
+        if isinstance(v, dict) and not v:
+            cleaned[k] = None
+        elif isinstance(v, dict):
+            cleaned[k] = clean_tool_args(v)
+        elif isinstance(v, list):
+            cleaned[k] = [clean_tool_args(i) if isinstance(i, dict) else i for i in v]
+        else:
+            cleaned[k] = v
+    return cleaned

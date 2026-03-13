@@ -64,8 +64,11 @@ async def orchestration_endpoint(request: ChatRequest):
     """The main entry point using LangGraph to route to the correct agent."""
     try:
         # 1. Run the LangGraph orchestration
+        thread_id = request.customer_id or "default_user"
+        config = {"configurable": {"thread_id": thread_id}}
+        
         state = {"messages": [HumanMessage(content=request.message)]}
-        result = app_graph.invoke(state)
+        result = app_graph.invoke(state, config=config)
         
         # 2. Extract final response from the graph's messages
         if result and result.get("messages"):

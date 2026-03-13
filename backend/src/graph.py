@@ -2,6 +2,7 @@ from typing import Dict, TypedDict, Annotated, Sequence
 import operator
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from src.agents.llm_utils import get_llm, get_text_content
 from src.agents.order_agent import invoke_order_agent
 from src.agents.product_agent import invoke_product_agent
@@ -29,16 +30,18 @@ Based on the user's message, decide which agent should handle it.
 Respond ONLY with a JSON object in this exact format: {"route": "<agent_name>"}
 
 Available routes:
-- "order_agent": For questions about order status, tracking, or refunds.
-- "product_agent": For questions about finding, recommending, or buying products.
+- "order_agent": For questions about order status, tracking, refunds, or sales/popularity statistics (e.g., "how many were sold?", "what is the best seller?").
+- "product_agent": For questions about finding, recommending, or buying products based on their features and categories.
 - "general": For greetings or questions that don't fit the above.
 """
     
-    llm = get_llm().with_config({"run_name": "Supervisor"})
+    # Set temperature=0 for deterministic routing
+    llm = get_llm(temperature=0).with_config({"run_name": "Supervisor"})
     
     response = llm.invoke([
         SystemMessage(content=system_prompt),
-        HumanMessage(content=user_input)
+        # Include previous messages for context
+        *messages
     ])
     
     try:
@@ -73,7 +76,8 @@ def product_agent_node(state: AgentState) -> Dict:
 
 def general_agent_node(state: AgentState) -> Dict:
     """Fallback agent for general greetings."""
-    llm = get_llm()
+    # Set temperature=0.5 for a friendly, conversational tone
+    llm = get_llm(temperature=0.5)
     messages = state["messages"]
     sys_msg = SystemMessage(content="You are a friendly customer support agent for ShopSmart. Greet the user and ask how you can help them with their orders or finding products.")
     
@@ -115,5 +119,8 @@ workflow.add_edge("order_agent", END)
 workflow.add_edge("product_agent", END)
 workflow.add_edge("general", END)
 
+# Add persistence
+memory = MemorySaver()
+
 # Compile!
-app_graph = workflow.compile()
+app_graph = workflow.compile(checkpointer=memory)

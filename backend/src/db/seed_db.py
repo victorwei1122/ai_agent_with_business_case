@@ -2,17 +2,28 @@ from src.db.database import SessionLocal, engine, Base
 from src.db.models import Customer, Product, Order, OrderItem, SupportTicket, ProductReview
 from src.mock_data import CUSTOMERS, PRODUCTS, ORDERS, SUPPORT_TICKETS, PRODUCT_REVIEWS
 
-def seed_database():
-    # Only create tables if they don't exist, don't drop them every time
+def seed_database(overwrite=True):
+    # Only create tables if they don't exist
     Base.metadata.create_all(bind=engine)
     
     db = SessionLocal()
     try:
-        # Check if we already have data to avoid redundant work
-        product_count = db.query(Product).count()
-        if product_count > 0:
-            print(f"Database already contains {product_count} products. Skipping seeding.")
-            return
+        if overwrite:
+            print("Clearing existing data for a fresh seed...")
+            # Delete in order of dependencies (child tables first)
+            db.query(OrderItem).delete()
+            db.query(SupportTicket).delete()
+            db.query(Order).delete()
+            db.query(ProductReview).delete()
+            db.query(Customer).delete()
+            db.query(Product).delete()
+            db.commit()
+        else:
+            # Check if we already have data to avoid redundant work
+            product_count = db.query(Product).count()
+            if product_count > 0:
+                print(f"Database already contains {product_count} products. Skipping seeding.")
+                return
 
         print("Start seeding database...")
         for pid, pdata in PRODUCTS.items():
