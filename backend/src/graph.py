@@ -20,21 +20,31 @@ class AgentState(TypedDict):
 
 def supervisor_node(state: AgentState) -> Dict:
     """
-    The Supervisor LLM decides which specialized agent should handle the user's query.
+    The Supervisor LLM decides which specialized agent should handle the user's query,
+    or if it has enough information to provide a final synthesized answer.
     """
     messages = state["messages"]
-    user_input = messages[-1].content
     
-    # We use a structured output prompt to force the LLM to pick a route
-    system_prompt = """You are a supervisor routing customer queries for an e-commerce store.
-Based on the user's message, decide which agent should handle it.
-Respond ONLY with a JSON object in this exact format: {"route": "<agent_name>"}
+    # We use a structured output prompt to force the LLM to pick a route OR finish
+    system_prompt = """You are the **Team Lead Supervisor** for ShopSmart Inc. 
+Your goal is to coordinate specialized agents to provide the best possible answer to the user.
 
-Available routes:
-- "order_agent": For questions about order status, tracking, refunds, or sales/popularity statistics.
-- "product_agent": For questions about finding, recommending, or buying products based on their features and categories.
-- "research_agent": For broad questions about database structure, table names, raw data analysis, or searching the web for latest news.
-- "general": For greetings or questions that don't fit the above.
+### YOUR CAPABILITIES:
+1. **ORCHESTRATION**: Routing to specialized agents to gather data.
+2. **SYNTHESIS**: Reviewing findings from all agents and writing the final response.
+
+### SPECIALIZED AGENTS:
+- "order_agent": For order status, tracking, refunds, or sales analytics.
+- "product_agent": For searching/recommending products from the catalog.
+- "research_agent": For customer reviews (sentiment), DB schema, or web research.
+
+### RULES:
+- If the user's question requires multiple angles (e.g., "Recommend a popular laptop with good reviews"), call agents sequentially.
+- Once you have all the data needed in the conversation history, choose "FINISH" and write the final response.
+- NEVER name the tools or internal agent names in the final response.
+
+Respond ONLY with a JSON object:
+{"route": "order_agent" | "product_agent" | "research_agent" | "FINISH"}
 """
     
     # Set temperature=0 for deterministic routing
@@ -42,23 +52,21 @@ Available routes:
     
     response = llm.invoke([
         SystemMessage(content=system_prompt),
-        # Include previous messages for context
         *messages
     ])
     
     try:
         content = get_text_content(response)
-            
         # Clean up the response in case it has markdown block formatting
         content = content.replace("```json", "").replace("```", "").strip()
         decision = json.loads(content)
-        route = decision.get("route", "general")
+        route = decision.get("route", "FINISH")
         # Validate route
-        if route not in ["order_agent", "product_agent", "research_agent", "general"]:
-            route = "general"
+        if route not in ["order_agent", "product_agent", "research_agent", "FINISH"]:
+            route = "FINISH"
     except Exception as e:
         logger.error(f"Failed to parse supervisor JSON: {response.content}. Error: {e}")
-        route = "general"
+        route = "FINISH"
         
     logger.info(f"Supervisor decided to route to: {route}")
     return {"next_agent": route}
@@ -82,22 +90,30 @@ def research_agent_node(state: AgentState) -> Dict:
     response_text = invoke_research_agent(user_input)
     return {"messages": [AIMessage(content=f"[From Research Agent] {response_text}")]}
 
-def general_agent_node(state: AgentState) -> Dict:
-    """Fallback agent for general greetings."""
-    # Set temperature=0.5 for a friendly, conversational tone
-    llm = get_llm(temperature=0.5)
+def final_answer_node(state: AgentState) -> Dict:
+    """
+    The Supervisor synthesizes all information gathered so far into a final response.
+    """
     messages = state["messages"]
-    sys_msg = SystemMessage(content="You are a friendly customer support agent for ShopSmart. Greet the user and ask how you can help them with their orders or finding products.")
+    llm = get_llm(temperature=0.7)
     
-    # Construct conversation history for the general agent
-    convo = [sys_msg] + list(messages)
-    response = llm.invoke(convo)
+    system_prompt = (
+        "You are **SmartBot**, the friendly and professional final responder for ShopSmart. "
+        "Review the conversation history, which includes data gathered by specialized agents. "
+        "Synthesize all findings into a single, cohesive, and helpful response for the user. "
+        "DO NOT use raw data or list previous agent names. Just give the best possible advice/answer."
+    )
     
-    return {"messages": [AIMessage(content=f"[From General Agent] {get_text_content(response)}")]}
+    response = llm.invoke([
+        SystemMessage(content=system_prompt),
+        *messages
+    ])
+    
+    return {"messages": [AIMessage(content=get_text_content(response))]}
 
 # Define the edge routing logic
 def route_to_agent(state: AgentState) -> str:
-    return state.get("next_agent", "general")
+    return state.get("next_agent", "FINISH")
 
 # Build the LangGraph
 workflow = StateGraph(AgentState)
@@ -107,7 +123,7 @@ workflow.add_node("supervisor", supervisor_node)
 workflow.add_node("order_agent", order_agent_node)
 workflow.add_node("product_agent", product_agent_node)
 workflow.add_node("research_agent", research_agent_node)
-workflow.add_node("general", general_agent_node)
+workflow.add_node("final_answer", final_answer_node)
 
 # Set the entry point
 workflow.set_entry_point("supervisor")
@@ -120,15 +136,15 @@ workflow.add_conditional_edges(
         "order_agent": "order_agent",
         "product_agent": "product_agent",
         "research_agent": "research_agent",
-        "general": "general"
+        "FINISH": "final_answer"
     }
 )
 
-# All agents end the graph after they respond
-workflow.add_edge("order_agent", END)
-workflow.add_edge("product_agent", END)
-workflow.add_edge("research_agent", END)
-workflow.add_edge("general", END)
+# Agents return to supervisor for next steps
+workflow.add_edge("order_agent", "supervisor")
+workflow.add_edge("product_agent", "supervisor")
+workflow.add_edge("research_agent", "supervisor")
+workflow.add_edge("final_answer", END)
 
 # Add persistence
 memory = MemorySaver()

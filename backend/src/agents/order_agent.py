@@ -196,7 +196,7 @@ def invoke_order_agent(message: str) -> str:
         HumanMessage(content=message)
     ]
     
-    for i in range(5):
+    for i in range(10):
         response = llm.invoke(messages)
         messages.append(response)
         

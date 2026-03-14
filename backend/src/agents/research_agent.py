@@ -6,7 +6,9 @@ from langchain_community.agent_toolkits import SQLDatabaseToolkit
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 from src.agents.llm_utils import get_llm, get_text_content, clean_tool_args
+from src.prompts import SYSTEM_PROMPT
 from src.db.database import SQLALCHEMY_DATABASE_URL
+from src.db.vector_store import vec_search_reviews
 
 def get_research_tools() -> List[Any]:
     """Initialize and return the tools for the Research Agent."""
@@ -23,6 +25,9 @@ def get_research_tools() -> List[Any]:
     if os.getenv("TAVILY_API_KEY"):
         search = TavilySearchResults(k=3)
         tools.append(search)
+
+    # 3. Vector Search (Product Reviews)
+    tools.append(vec_search_reviews)
         
     return tools
 
@@ -35,12 +40,18 @@ def invoke_research_agent(message: str) -> str:
     llm = get_llm(temperature=0).bind_tools(tools)
     
     system_prompt = (
+        SYSTEM_PROMPT + "\n\n"
         "You are the specialized **Research Agent**. "
-        "You have two main capabilities:\n"
-        "1. **Data Analysis**: You can query the local SQL database to answer broad questions about the schema, "
-        "table structures, or complex data relationships that simple tool calls can't handle.\n"
-        "2. **Web Research**: You can search the internet for the latest news, market trends, or comparative information.\n\n"
-        "Be thorough and cite your sources (database tables or search results)."
+        "You have three main capabilities:\n"
+        "1. **Data Analysis**: You can query the local SQL database to answer questions about the schema, "
+        "table structures, or complex data relationships.\n"
+        "2. **Product Review Research**: You can search through thousands of customer reviews using natural language.\n"
+        "3. **Web Research**: You can search the internet for latest news and trends.\n\n"
+        "**RESEARCH-SPECIFIC RULES**:\n"
+        "- NEVER return raw JSON data or Python dictionaries to the user.\n"
+        "- Synthesize the information you find into a friendly, professional, and human-readable summary.\n"
+        "- Cite your sources (e.g., 'Based on 5 customer reviews...').\n"
+        "- If you found multiple reviews, summarize the overall sentiment for the user."
     )
     
     messages = [

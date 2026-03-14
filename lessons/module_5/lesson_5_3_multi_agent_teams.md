@@ -1,59 +1,50 @@
-# Lesson 5.3: Multi-Agent Orchestration
+# Lesson 5.3: Multi-Agent Teams & Circular Orchestration
 
-*Dividing to Conquer*
-
-## Introduction
-
-Why build many small agents instead of one giant agent that does everything? The answer is **Specialization**.
-
-Just as a hospital has different doctors for different body parts, a multi-agent system has different AIs for different business functions.
-
----
+In this lesson, we explore how to move beyond simple routing to building a highly collaborative **team** of agents using circular orchestration.
 
 ## 1. The Power of Specialization
 
-When you build a specialized agent, you can give it:
+Why build many small agents instead of one giant agent? **Specialization**.
+Just as a hospital has different specialists, a multi-agent system uses different AIs for different business functions:
 
 - **Focused Prompts**: Detailed instructions that only apply to one job.
-- **Specific Tools**: Only the database permissions it needs.
-- **Dedicated Memory**: Information relevant only to its task.
+- **Specific Tools**: Only the tools and permissions it actually needs.
+- **Reduced Hallucinations**: Smaller scopes lead to higher accuracy.
 
 ---
 
-## 🛠️ In Our Project: The Product vs. Order Agent
+## 2. From Linear Routing to Circular Teams
 
-We divided our project into two "Specialists":
+In a basic system, a **Supervisor** acts like a switchboard:
 
-### A. The Product Agent (The Marketer)
+1. User asks a question -> Supervisor picks **one** agent -> Agent answers.
 
-- **Job**: Explain product features, compare models, and creatively recommend solutions.
-- **Tools**: Product catalog, Review database.
-- **Tone**: Enthusiastic and helpful.
+### The "Collective Thinking" Pattern
 
-### B. The Order Agent (The Accountant)
+For complex queries like *"Recommend a popular laptop with good reviews,"* our system now uses a **Circular Team Flow**:
 
-- **Job**: Check delivery statuses, verify refund policies, and output accurate sales data.
-- **Tools**: SQL Order table, Refund engine.
-- **Tone**: Precise, professional, and data-driven.
+```mermaid
+graph LR
+    User([User]) --> Supervisor{Team Lead<br/>Supervisor}
+    Supervisor -->|Task 1| OrderAgent[Order Specialist]
+    OrderAgent -->|Sales Data| Supervisor
+    Supervisor -->|Task 2| ResearchAgent[Research Specialist]
+    ResearchAgent -->|Review Sentiment| Supervisor
+    Supervisor -->|Synthesize| Final([Final Answer])
+```
 
----
-
-## 2. Delegation as Conversation
-
-Multi-agent systems don't just "hand over" a file. They "talk" to each other through the shared **State**.
-
-- **Workflow Example**:
-    1. User asks: *"Which of your best-selling laptops is best for gaming?"*
-    2. Supervisor sends the request to the **Order Agent** to find the "best sellers."
-    3. Order Agent writes the results into the State.
-    4. Supervisor sends the data to the **Product Agent** to find which of those is best for gaming.
-    5. Product Agent gives the final answer.
+1. **The Team Lead (Supervisor)**: acts as a project manager, reviewing findings after every agent turn and deciding if more data is needed.
+2. **The Synthesis Layer**: Once all data is gathered, the Supervisor (SmartBot) synthesizes the technical findings into one cohesive, human-readable response.
+3. **Cross-Agent Context**: Every agent shares the same conversation history, allowing them to build on each other's work.
 
 ---
+
+## 🛠️ Our Team Members
+
+1. **Order Agent (The Accountant)**: SQL Specialist. Provides sales analytics and tracking data.
+2. **Product Agent (The Marketer)**: Catalog Specialist. Compares features and prices for recommendations.
+3. **Research Agent (The Analyst)**: Vector & Web Specialist. Analyzes broad customer sentiment and market trends.
 
 ## Summary
 
-Orchestration is the art of managing this specialized workforce. By breaking a large problem into smaller pieces, you make each piece easier to build, test, and improve.
-
-> [!NOTE]
-> Industry research shows that specialized multi-agent systems have a significantly lower "hallucination rate" than single-agent systems attempting the same complexity.
+Multi-agent collaboration is about **orchestration**. By dividing labor and allowing agents to return results to a central lead for synthesis, we create a system that is more accurate, professional, and capable of handling multi-faceted business questions.

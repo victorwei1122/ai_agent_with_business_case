@@ -7,18 +7,27 @@ A professional-grade AI Agent system demonstrating a **Multi-Agent Orchestration
 The application is built using a modern, containerized microservices architecture with local-first capabilities:
 
 ```mermaid
-graph TD
-    UI[React / Vite Frontend] -->|REST API| BE[FastAPI / LangGraph Backend]
-    subgraph "Hybrid LLM Engine"
-        BE -->|Cloud| Gemini[Google Gemini 1.5]
-        BE -->|Local| Ollama[Llama 3.2 via Ollama]
+graph LR
+    User([User]) --> Supervisor{Team Lead<br/>Supervisor}
+    Supervisor -->|Plan| Agents[Specialized Agents]
+    subgraph "The Squad"
+        Agents --> OrderAgent[Order Specialist]
+        Agents --> ProductAgent[Product Specialist]
+        Agents --> ResearchAgent[Research Specialist]
     end
-    BE -->|SQL Queries| DB[(PostgreSQL 15)]
-    BE -->|Agentic Routes| Agents{Orchestrator}
-    Agents --> OrderAgent[Order Specialist]
-    Agents --> ProductAgent[Product Specialist]
-    Agents --> GeneralAgent[Chat Specialist]
+    OrderAgent -->|Gather Data| Supervisor
+    ProductAgent -->|Gather Data| Supervisor
+    ResearchAgent -->|Gather Data| Supervisor
+    Supervisor -->|Synthesize| Final([Final Answer])
 ```
+
+### 🔹 1. Collective Thinking Orchestration
+
+Unlike traditional linear routers, our **Team Lead Supervisor** uses a circular cycle:
+
+- **Sequential Planning**: Can call multiple specialists in a single turn.
+- **Cross-Agent Knowledge**: The Research Agent's sentiment findings can inform the Product Agent's recommendations.
+- **Unified Synthesis**: Only the Supervisor writes the final response, ensuring a consistent brand voice.
 
 ### 🔹 1. Premium Frontend (`ui/`)
 
@@ -27,9 +36,8 @@ graph TD
 
 ### 🔹 2. Intelligence Layer (`backend/`)
 
-- **Hybrid LLM Support**: Toggle between cloud (Gemini) and local (Ollama) providers via configuration.
-- **LangGraph Orchestrator**: Uses a **Supervisor Pattern** to route user intent to specialized agents.
-- **Product & Sales Analytics**: Real-time sales data and popularity tracking to back up product recommendations.
+- **Vector-Enabled RAG**: Deep retrieval of customer reviews using **ChromaDB** and **Google Gemini Embeddings**.
+- **Research Specialist**: A new agent dedicated to sentiment analysis and product issue discovery via vector search.
 - **Session Persistence**: Multi-turn memory using LangGraph checkpointers (stateful conversations).
 
 ### 🔹 3. 🎓 AI Learning Curriculum (`lessons/`)
@@ -39,10 +47,11 @@ graph TD
 
 ### 🔹 4. Persistent Data (`db/`)
 
-- **Dual-Database Architecture**:
-  - **Local Development**: Uses **SQLite** (`ecommerce.db`) for immediate, zero-config script execution and testing.
-  - **Production/Docker**: Automatically switches to **PostgreSQL 15** when running via Docker for enterprise-grade persistence.
-- **Analytical Seeding**: High-quality mock data designed to test data-driven reasoning (e.g., finding the "best selling" items).
+- **Triple-Database Architecture**:
+  - **Structured Data**: Uses **PostgreSQL** (Docker) or **SQLite** for relational data (Orders, Products).
+  - **Semi-Structured Content**: Uses **ChromaDB** for storing and chunking product reviews.
+  - **Conversational State**: Uses a separate persistence layer for LangGraph checkpoints.
+- **Analytical Seeding**: High-quality mock data and synthetic reviews designed to test RAG and data-driven reasoning.
 
 ---
 
@@ -99,10 +108,26 @@ graph TD
 - "Where is my order #1005?"
 - "I want to return my SoundMax headphones, what's my status?"
 
-#### 🧠 Persistence (Context)
+#### 🧠 Semantic Research (RAG)
 
-1. Ask: "Tell me about the SoundMax headphones."
-2. Follow up: "Do you have any in stock?" (Agent remembers you are talking about SoundMax).
+- "What do people generally complain about regarding the SoundMax headphones?"
+- "Is the Titan gaming laptop's keyboard considered good for typing?"
+
+#### 🧠 Multi-Agent Synthesis (Collective Thinking)
+
+- "What is our best-selling laptop, and do customers like it? Recommend it if it fits a $2000 budget."
+  - *Orchestrates Order Agent (Sales), Research Agent (Sentiment), and Product Agent (Catalog) in one turn.*
+
+---
+
+## 🏗 Project Architecture & Workflow
+
+The system follows a strict **Separation of Concerns**:
+
+1. **`db` & `chroma`**: Pure data engines.
+2. **`seeder`**: Automated "Init" service that populates data then exits.
+3. **`backend`**: Stateless API server.
+4. **`ui`**: Modern React frontend.
 
 ---
 
@@ -110,16 +135,52 @@ graph TD
 
 ```
 .
-├── docker-compose.yml       # Orchestration for Backend, UI, Postgres, and Ollama
+├── docker-compose.yml       # Orchestration for the complete stack
+├── docker/                  # 🐳 Centralized Dockerfiles for all services
+│   ├── backend/
+│   ├── ui/
+│   ├── db/
+│   └── chroma/
 ├── lessons/                 # 🎓 Complete 8-Module AI Agent Curriculum
 ├── backend/
 │   ├── config.yml           # Provider toggles & Model settings
 │   ├── src/
-│   │   ├── agents/          # Specialized Agent logic (Product, Order, Supervisor)
-│   │   ├── db/              # Postgres models and Analytical Seeding logic
+│   │   ├── agents/          # Specialized Agent logic (Product, Order, Research, Supervisor)
+│   │   ├── db/              # SQL models, Vector Store logic, and Seeding scripts
 │   │   └── graph.py         # LangGraph Orchestration & Persistence
 └── ui/
     ├── src/                 # React components and Chat UI
+```
+
+### 🛠 Seeding Data
+
+#### **Option A: Automated Seeding (Default)**
+
+When you run `docker-compose up`, the `seeder` service automatically populates all data and then shuts down once complete. No manual action is required!
+
+#### **Option B: Force Re-seed (Docker)**
+
+If you need to refresh the data while the containers are running:
+
+```bash
+# Seed SQL Database
+docker-compose exec backend python3 src/db/seed_db.py
+
+# Seed Vector Database
+docker-compose exec backend python3 src/db/seed_vector_db.py
+```
+
+#### **Option B: Manual Seeding (Local)**
+
+If running scripts outside of Docker, use:
+
+```bash
+# Seed SQL product data
+python3 backend/src/db/seed_db.py
+
+# Seed Vector reviews (requires GOOGLE_API_KEY)
+export PYTHONPATH=$PYTHONPATH:$(pwd)/backend
+python3 backend/src/db/seed_vector_db.py
 ```
 
 ## License

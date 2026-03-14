@@ -13,5 +13,5 @@ COPY config.yml .
 
 EXPOSE 8000
 
-# Sleep for a few seconds to let Postgres start up, then seed db, then run server
-CMD ["sh", "-c", "sleep 5 && python -m src.db.seed_db && uvicorn src.api:app --host 0.0.0.0 --port 8000"]
+# Run server
+CMD ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]

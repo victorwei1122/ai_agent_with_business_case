@@ -45,6 +45,7 @@ Welcome to the AI Agent Design & Development curriculum. This course is designed
 - **Lesson 4.2**: Core Components (Models, Prompts, Output Parsers)
 - **Lesson 4.3**: Tools and Toolkits (Standardizing external capabilities)
 - **Lesson 4.4**: Simple RAG (Retrieval Augmented Generation) Chains
+- **Lesson 4.5**: Vector Databases and Chunking (Long-term memory)
 
 ## Module 5: Agent Frameworks (LangGraph)
 
@@ -52,7 +53,7 @@ Welcome to the AI Agent Design & Development curriculum. This course is designed
 
 - **Lesson 5.1**: State Management (What the agent knows and carries)
 - **Lesson 5.2**: Decision Nodes & Routing (The Supervisor pattern)
-- **Lesson 5.3**: Multi-Agent Orchestration (Specialization and Teamwork)
+- **Lesson 5.3**: Multi-Agent Teams & Circular Orchestration
 
 ## Module 6: Memory & Persistence
 

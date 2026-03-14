@@ -2,31 +2,34 @@ version: '3.8'
 
 services:
   db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: ecommerce
+    build: ./docker/db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile
     ports:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/ecommerce
+      - CHROMA_SERVER_HOST=chroma
+      - CHROMA_SERVER_HTTP_PORT=8000
     depends_on:
-      - db
+      seeder:
+        condition: service_completed_successfully
     restart: on-failure
     volumes:
       - ./backend/src:/app/src
       - ./backend/config.yml:/app/config.yml
 
   ui:
-    build: ./ui
+    build:
+      context: ./ui
+      dockerfile: ../docker/ui/Dockerfile
     ports:
       - "5173:5173"
     environment:
@@ -36,6 +39,28 @@ services:
     volumes:
       - ./ui/src:/app/src
       - ./ui/public:/app/public
+
+  chroma:
+    build: ./docker/chroma
+    ports:
+      - "8002:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+
+  seeder:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/ecommerce
+      - CHROMA_SERVER_HOST=chroma
+      - CHROMA_SERVER_HTTP_PORT=8000
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    depends_on:
+      - db
+      - chroma
+    command: >
+      sh -c "python -m src.db.seed_db && python -m src.db.seed_vector_db"
 
   ollama:
     image: ollama/ollama:latest
@@ -47,3 +72,4 @@ services:
 volumes:
   postgres_data:
   ollama_data:
+  chroma_data:

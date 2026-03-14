@@ -7,6 +7,7 @@ from src.db.models import Product
 from src.prompts import SYSTEM_PROMPT
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 from src.agents.llm_utils import get_llm, get_text_content, clean_tool_args
+from src.db.vector_store import search_reviews
 
 @tool
 def db_search_products(query: Optional[str] = None, category: Optional[str] = None) -> Dict[str, Any]:
@@ -63,6 +64,8 @@ def db_search_products(query: Optional[str] = None, category: Optional[str] = No
     finally:
         db.close()
 
+from src.db.vector_store import search_reviews, vec_search_reviews
+
 @tool
 def db_get_product_reviews(product_id: str) -> Dict[str, Any]:
     """Get customer reviews for a specific product ID. Returns a list of comments and ratings."""
@@ -89,7 +92,8 @@ def db_get_product_reviews(product_id: str) -> Dict[str, Any]:
     finally:
         db.close()
 
-product_tools = [db_search_products, db_get_product_reviews]
+product_tools = [db_search_products, db_get_product_reviews, vec_search_reviews]
+
 def invoke_product_agent(message: str) -> str:
     """
     Invokes the Product Agent to search for products and recommend them.
@@ -102,7 +106,7 @@ def invoke_product_agent(message: str) -> str:
         HumanMessage(content=message)
     ]
     
-    for i in range(5):
+    for i in range(10):
         response = llm.invoke(messages)
         messages.append(response)
         
