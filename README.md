@@ -39,7 +39,9 @@ graph TD
 
 ### 🔹 4. Persistent Data (`db/`)
 
-- **PostgreSQL 15**: Enterprise-grade persistence for products, orders, and sessions.
+- **Dual-Database Architecture**:
+  - **Local Development**: Uses **SQLite** (`ecommerce.db`) for immediate, zero-config script execution and testing.
+  - **Production/Docker**: Automatically switches to **PostgreSQL 15** when running via Docker for enterprise-grade persistence.
 - **Analytical Seeding**: High-quality mock data designed to test data-driven reasoning (e.g., finding the "best selling" items).
 
 ---

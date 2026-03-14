@@ -25,11 +25,37 @@ def db_lookup_order(order_id: str) -> Dict[str, Any]:
 
 ## 2. Function Binding: The "Sales Pitch"
 
-The LLM doesn't see your Python code. It sees a specialized description of your function. When we "bind" tools to an LLM, we send it a JSON schema that looks like this:
+The LLM doesn't see your Python code. It sees a specialized JSON description of your function. When we "bind" tools to an LLM, we send it a schema that looks like this:
+
+**What the AI actually sees:**
+
+```json
+{
+  "name": "db_lookup_order",
+  "name_in_context": "db_lookup_order",
+  "description": "Look up an order by its ID. Returns order status, items, tracking info, and dates.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "order_id": {
+        "title": "Order Id",
+        "type": "string"
+      }
+    },
+    "required": ["order_id"]
+  }
+}
+```
+
+In simpler terms, the agent sees:
 
 - **Name**: `db_lookup_order`
 - **Description**: "Look up an order by its ID. Returns order status..."
 - **Arguments**: `order_id` (Type: string)
+
+### Docstrings are Code
+
+Notice how the `description` comes directly from your function's **docstring**, and the `type` comes from your **type hints** (`order_id: str`). In agent development, your documentation is actually part of your logic—if you write a poor description, the AI will use the tool incorrectly.
 
 ---
 
@@ -44,6 +70,14 @@ Our **Order Agent** has three main tools:
 3. `db_get_sales_analytics`: For high-level reasoning across many records.
 
 When the LLM receives a query, it selects the **Right Tool for the Job** based on the descriptions we wrote in the docstrings.
+
+### What if no tool fits?
+
+If the user asks something that doesn't match any tool description (e.g., "What's the weather like?"), the AI simply won't call a tool. Instead, it will:
+
+1. **Skip the Tool Call**: The `response.tool_calls` list will be empty.
+2. **Fallback to Conversation**: The agent will generate a normal text response (e.g., "I'm sorry, I only have access to order and sales data, not weather info.").
+3. **Exit the Loop**: Since no tool was called, the `for` loop finishes and returns the text to the user.
 
 ---
 

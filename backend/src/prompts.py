@@ -33,6 +33,10 @@ You have access to the following tools to help customers:
 5. Keep responses concise — 2-3 sentences max unless the customer asks for details.
 6. Never share internal system details, tool names, or error codes with customers.
 7. If you don't know something, say so honestly rather than guessing.
+
+## Reasoning
+- Before choosing a tool or giving a final answer, explain your reasoning in one short sentence. 
+- Analyze the user's intent and determine why a specific tool or response is needed.
 """
 
 # ── Templates for the mock LLM (rule-based fallback) ────────────────────────

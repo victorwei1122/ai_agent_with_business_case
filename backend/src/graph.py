@@ -6,6 +6,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from src.agents.llm_utils import get_llm, get_text_content
 from src.agents.order_agent import invoke_order_agent
 from src.agents.product_agent import invoke_product_agent
+from src.agents.research_agent import invoke_research_agent
 import json
 import logging
 
@@ -30,8 +31,9 @@ Based on the user's message, decide which agent should handle it.
 Respond ONLY with a JSON object in this exact format: {"route": "<agent_name>"}
 
 Available routes:
-- "order_agent": For questions about order status, tracking, refunds, or sales/popularity statistics (e.g., "how many were sold?", "what is the best seller?").
+- "order_agent": For questions about order status, tracking, refunds, or sales/popularity statistics.
 - "product_agent": For questions about finding, recommending, or buying products based on their features and categories.
+- "research_agent": For broad questions about database structure, table names, raw data analysis, or searching the web for latest news.
 - "general": For greetings or questions that don't fit the above.
 """
     
@@ -52,7 +54,7 @@ Available routes:
         decision = json.loads(content)
         route = decision.get("route", "general")
         # Validate route
-        if route not in ["order_agent", "product_agent", "general"]:
+        if route not in ["order_agent", "product_agent", "research_agent", "general"]:
             route = "general"
     except Exception as e:
         logger.error(f"Failed to parse supervisor JSON: {response.content}. Error: {e}")
@@ -73,6 +75,12 @@ def product_agent_node(state: AgentState) -> Dict:
     user_input = state["messages"][-1].content
     response_text = invoke_product_agent(user_input)
     return {"messages": [AIMessage(content=f"[From Product Agent] {response_text}")]}
+
+def research_agent_node(state: AgentState) -> Dict:
+    """Invokes the Research Agent via its toolkit-powered function."""
+    user_input = state["messages"][-1].content
+    response_text = invoke_research_agent(user_input)
+    return {"messages": [AIMessage(content=f"[From Research Agent] {response_text}")]}
 
 def general_agent_node(state: AgentState) -> Dict:
     """Fallback agent for general greetings."""
@@ -98,6 +106,7 @@ workflow = StateGraph(AgentState)
 workflow.add_node("supervisor", supervisor_node)
 workflow.add_node("order_agent", order_agent_node)
 workflow.add_node("product_agent", product_agent_node)
+workflow.add_node("research_agent", research_agent_node)
 workflow.add_node("general", general_agent_node)
 
 # Set the entry point
@@ -110,6 +119,7 @@ workflow.add_conditional_edges(
     {
         "order_agent": "order_agent",
         "product_agent": "product_agent",
+        "research_agent": "research_agent",
         "general": "general"
     }
 )
@@ -117,6 +127,7 @@ workflow.add_conditional_edges(
 # All agents end the graph after they respond
 workflow.add_edge("order_agent", END)
 workflow.add_edge("product_agent", END)
+workflow.add_edge("research_agent", END)
 workflow.add_edge("general", END)
 
 # Add persistence

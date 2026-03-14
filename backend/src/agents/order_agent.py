@@ -1,10 +1,15 @@
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
+import json
+from pydantic import BaseModel, Field
 from langchain_core.tools import tool
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from src.db.database import SessionLocal
 from src.db.models import Order, Customer, Product, OrderItem
+from src.prompts import SYSTEM_PROMPT
+from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
+from src.agents.llm_utils import get_llm, get_text_content, clean_tool_args
 
 @tool
 def db_lookup_order(order_id: str) -> Dict[str, Any]:
@@ -126,12 +131,59 @@ def db_get_sales_analytics(product_name: Optional[str] = None) -> Dict[str, Any]
     finally:
         db.close()
 
-import json
-from src.prompts import SYSTEM_PROMPT
-from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
-from src.agents.llm_utils import get_llm, get_text_content, clean_tool_args
+@tool
+def db_list_customer_orders(customer_id: str) -> Dict[str, Any]:
+    """Get a list of all orders for a specific customer ID. Returns order IDs, dates, and statuses."""
+    db = SessionLocal()
+    try:
+        orders = db.query(Order).filter(Order.customer_id == customer_id).all()
+        if not orders:
+            return {"success": False, "error": f"No orders found for customer ID '{customer_id}'."}
 
-order_tools = [db_lookup_order, db_process_refund, db_get_sales_analytics]
+        results = []
+        for order in orders:
+            results.append({
+                "order_id": order.id,
+                "total": f"${order.total:.2f}",
+                "status": order.status,
+                "ordered_date": order.ordered_date
+            })
+        
+        return {
+            "success": True, 
+            "customer_id": customer_id, 
+            "order_count": len(results),
+            "orders": results
+        }
+    finally:
+        db.close()
+
+class TicketSchema(BaseModel):
+    """Schema for creating a support ticket."""
+    order_id: str = Field(description="The order ID this ticket is related to")
+    subject: str = Field(description="Short summary of the issue (e.g. 'Late delivery', 'Damaged item')")
+    priority: str = Field(description="Priority level: 'low', 'normal', 'high', 'urgent'")
+    description: str = Field(description="Detailed explanation of the customer's problem")
+
+@tool(args_schema=TicketSchema)
+def db_create_support_ticket(order_id: str, subject: str, priority: str, description: str) -> Dict[str, Any]:
+    """
+    Create a new support ticket for a customer issue. 
+    This is a 'Structured Tool' that requires multiple specific fields.
+    """
+    # In a real app, we would write to the database here.
+    # For this demo, we'll return a simulated success message.
+    ticket_id = "T999"  # Dummy ID
+    return {
+        "success": True,
+        "ticket_id": ticket_id,
+        "order_id": order_id,
+        "subject": subject,
+        "priority": priority,
+        "message": f"Ticket {ticket_id} has been created and assigned to a human agent. Priority: {priority}."
+    }
+
+order_tools = [db_lookup_order, db_process_refund, db_get_sales_analytics, db_list_customer_orders, db_create_support_ticket]
 def invoke_order_agent(message: str) -> str:
     """
     Invokes the Order Agent to look up orders and process refunds.

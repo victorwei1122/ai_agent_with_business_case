@@ -43,9 +43,13 @@ for i in range(5):
     return get_text_content(response)
 ```
 
-### Why a limit?
+### Understanding the Loop
 
-We set the loop to `range(5)` as a safety measure. If an agent gets stuck in a "infinite loop" (e.g., trying the same failing tool over and over), this prevents it from wasting money and time.
+It's common to mistake this `for` loop for "retrying" the same question. Here is what is actually happening:
+
+1. **Sequence, not Competition**: This is a **sequence of turns**, not 5 separate attempts to pick the "best" answer. Each turn builds on the last (e.g., Turn 1: Lookup Order -> Turn 2: Process Refund -> Turn 3: Final Answer).
+2. **Building Context (Memory)**: Inside the loop, we use `messages.append(response)`. This means the agent **remembers** what happened in the previous turn. If a tool returns an error, the agent sees that in the next turn and can correct itself.
+3. **The Safety Rail**: We set `range(5)` as a maximum limit. Most requests only take 1–2 turns. If an agent gets stuck in an "infinite loop" (trying the same failing action repeatedly), this prevents it from wasting time and API costs.
 
 ---
 

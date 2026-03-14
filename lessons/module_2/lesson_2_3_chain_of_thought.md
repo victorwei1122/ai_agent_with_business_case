@@ -23,28 +23,42 @@ In the world of agents, CoT is required for **Tool Selection**.
 
 ---
 
-## 🛠️ In Our Project: Multi-Agent Reasoning
+## 🛠️ In Our Project: Multi-Layered Reasoning
 
-When our **Supervisor** receives a complex request, it has to use chain-of-thought (mentally) to decide where to go.
+We use Chain-of-Thought in three distinct ways in our e-commerce system:
 
-**User Question**: *"Is the SoundMax headphones your best seller?"*
+### 1. Architectural CoT (The ReAct Loop)
 
-**The "Invisible" Chain of Thought**:
+Our specialized agents (Order & Product) use the **ReAct pattern**. Instead of one shot, the agent cycles through **Think -> Act -> Observe** in a loop.
 
-1. The user is asking about a specific product (`SoundMax`).
-2. They are asking about its popularity/sales status (`best seller`).
-3. The **Product Agent** knows features, but the **Order Agent** has the `db_get_sales_analytics` tool.
-4. **Conclusion**: I should route this to the `order_agent`.
+- **Think**: "I need to see the customer's orders to answer this."
+- **Act**: Call `db_list_customer_orders`.
+- **Observe**: Receives a list of 3 orders.
+- **Respond**: "I see you have 3 orders with us..."
+
+### 2. Invisible CoT (The Supervisor)
+
+The **Supervisor** performs mental reasoning to route requests.
+
+- **User Question**: *"Is the SoundMax headphones your best seller?"*
+- **Reasoning**: The user is asking about a specific product's popularity. The **Order Agent** has the `db_get_sales_analytics` tool, so I should route there.
+
+### 3. UI Representation
+
+In our terminal logs and UI, we explicitly show the agent's thought process (e.g., `💭 Think: Calling lookup_order...`). This makes the inner workings of the LLM transparent to the developer and user.
 
 ---
 
-## 3. Designing for Reasoning
+## 4. Designing for Reasoning
 
-When you write a System Message for a complex agent, include a section about reasoning:
+When you write a System Message for a complex agent, include a section about reasoning.
 
-```text
-Before choosing a tool, explain your reasoning in one sentence. 
-Analyze the user's intent and determine which data source is required.
+**In our code (`backend/src/prompts.py`):**
+
+```python
+## Reasoning
+- Before choosing a tool or giving a final answer, explain your reasoning in one short sentence. 
+- Analyze the user's intent and determine why a specific tool or response is needed.
 ```
 
 ---

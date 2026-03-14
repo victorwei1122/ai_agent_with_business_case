@@ -240,7 +240,48 @@ def search_products(query: Optional[str] = None, category: Optional[str] = None)
     }
 
 
-# ── Tool 4: Escalate to Human ─────────────────────────────────────────────
+# ── Tool 4: List Customer Orders ───────────────────────────────────────────
+
+@register_tool(
+    name="list_customer_orders",
+    description="Get a list of all orders for a specific customer ID. Returns order IDs, dates, totals, and statuses.",
+    parameters={
+        "customer_id": {
+            "type": "string",
+            "description": "The customer ID to look up (e.g. 'C001')",
+            "required": True,
+        }
+    },
+)
+def list_customer_orders(customer_id: str) -> dict:
+    """
+    Retrieves all orders for a specific customer from the mock database.
+    """
+    results = []
+    for order_id, order in ORDERS.items():
+        if order["customer_id"] == customer_id:
+            results.append({
+                "order_id": order["id"],
+                "total": f"${order['total']:.2f}",
+                "status": order["status"],
+                "ordered_date": order["ordered_date"],
+            })
+
+    if not results:
+        return {
+            "success": False,
+            "error": f"No orders found for customer ID '{customer_id}'.",
+        }
+
+    return {
+        "success": True,
+        "customer_id": customer_id,
+        "order_count": len(results),
+        "orders": results,
+    }
+
+
+# ── Tool 5: Escalate to Human ─────────────────────────────────────────────
 
 @register_tool(
     name="escalate_to_human",

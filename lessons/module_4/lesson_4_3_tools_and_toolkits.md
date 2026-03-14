@@ -32,16 +32,20 @@ def db_lookup_order(order_id: str) -> Dict[str, Any]:
 
 Sometimes a tool needs complex inputs (like an object with many fields). LangChain supports this via Pydantic models.
 
-**Example**: If we wanted to create a tool for creating a complex support ticket, we would define a Pydantic class:
+**Example**: In our [order_agent.py](../../backend/src/agents/order_agent.py), we defined a schema for creating support tickets:
 
 ```python
+from pydantic import BaseModel, Field
+
 class TicketSchema(BaseModel):
-    subject: str
-    priority: str
-    description: str
+    order_id: str = Field(description="The order ID this ticket is related to")
+    subject: str = Field(description="Short summary of the issue")
+    priority: str = Field(description="Priority level: 'low', 'normal', 'high', 'urgent'")
+    description: str = Field(description="Detailed explanation of the problem")
 
 @tool(args_schema=TicketSchema)
-def create_ticket(args: TicketSchema):
+def db_create_support_ticket(order_id: str, subject: str, priority: str, description: str):
+    """Create a new support ticket for a customer issue."""
     ...
 ```
 
@@ -61,11 +65,62 @@ When we call `.bind_tools(order_tools)`, the LLM is given the instructions for a
 
 ## 3. Toolkits
 
-LangChain also provides pre-built **Toolkits** for common tasks:
+LangChain provides pre-built **Toolkits** for common tasks. Instead of defining tools manually, you can ingest a whole suite of capabilities at once.
 
-- **SQLDatabaseToolkit**: Allows an agent to safely query a database.
-- **GmailToolkit**: Allows an agent to read/write emails.
-- **SearchTool**: Connects an agent to Google or DuckDuckGo.
+### A. SQLDatabaseToolkit
+
+This is incredibly powerful for internal business tools. It allows an agent to:
+
+1. List tables in a database.
+2. Inspect the schema of specific tables.
+3. Execute SQL queries and receive the results.
+4. Check its own SQL syntax for errors.
+
+**Implementation Example** (see [research_agent.py](../../backend/src/agents/research_agent.py)):
+
+```python
+from langchain_community.utilities import SQLDatabase
+from langchain_community.agent_toolkits import SQLDatabaseToolkit
+from src.db.database import SQLALCHEMY_DATABASE_URL
+
+# Connect using the project's unified database URL (SQLite or Postgres)
+db = SQLDatabase.from_uri(SQLALCHEMY_DATABASE_URL)
+toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+
+# This adds 4 tools: query, schema, list_tables, and query_checker
+tools = toolkit.get_tools()
+```
+
+### B. Search Tools (e.g. Tavily)
+
+To give your agent access to real-time information (like current stock market prices or news), you can use a search tool. **Tavily** is a search engine optimized specifically for AI agents.
+
+```python
+from langchain_community.tools.tavily_search import TavilySearchResults
+
+# k=3 returns the top 3 results
+search_tool = TavilySearchResults(k=3)
+```
+
+---
+
+---
+
+## 🚀 Hands-on: See it in Action
+
+We have integrated these toolkits into a specialized **Research Agent** within our orchestrator ([graph.py](../../backend/src/graph.py)).
+
+### Try it in the Chat
+
+1. **SQL Toolkit**: Ask the bot: *"What are all the table names in our system?"*
+    - The **Supervisor** will route to the **Research Agent**.
+    - The **Research Agent** will use the `SQLDatabaseToolkit` to list the tables.
+2. **Search Tool**: Ask the bot: *"What are some popular AI agent trends in 2024?"*
+    - The agent will use the `TavilySearchResults` tool to browse the web!
+
+### Why this matters
+
+By using **Toolkits**, we didn't have to write custom code to explore the database. We simply gave the AI a "professional kit" and let it figure out how to use the specific tools inside it.
 
 ---
 

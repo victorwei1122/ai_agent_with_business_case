@@ -37,7 +37,18 @@ result = chain.invoke(input)
 
 ---
 
-## 🛠️ In Our Project: Tool Binding as a Chain
+## 3. Setting Up for Success: LangSmith
+
+As chains get more complex, debugging them in the terminal becomes difficult. We highly recommend enabling **LangSmith** tracing early.
+
+LangSmith allows you to see the "X-ray" of your LCEL chains. You can see exactly how each part of the chain (Prompt | LLM | Parser) transforms the data.
+
+> [!NOTE]
+> We will do a deep-dive into Performance Tracing in **Module 8**, but if you want to see your chains in action now, simply set `LANGCHAIN_TRACING_V2=true` and your `LANGCHAIN_API_KEY` in your environment.
+
+---
+
+## 4. 🛠️ In Our Project: Tool Binding as a Chain
 
 Even though we have a custom loop in `order_agent.py`, we use the beginning of a chain to set up our model.
 
@@ -53,7 +64,7 @@ By using `.bind_tools()`, we are telling LangChain: "Every time I call this LLM,
 
 ---
 
-## 3. The Power of "Composition"
+## 5. The Power of "Composition"
 
 Imagine you want to translate a user's question before the agent answers it. With LCEL, it's easy:
 

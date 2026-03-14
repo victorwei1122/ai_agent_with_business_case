@@ -1,10 +1,12 @@
-# Lesson 8.2: Performance Tracing
+# Lesson 8.2: Performance Tracing & Observability
 
-*Seeing Inside the Machine*
+*Seeing Inside the Machine with LangSmith*
 
 ## Introduction
 
 When a multi-agent system fails, it's often hard to see why. Did the Supervisor route it wrong? Did the tool return bad data? **Tracing** provides a step-by-step "log" of exactly what happened at every second of the conversation.
+
+In this lesson, we move beyond simple print statements to professional observability using **LangSmith**.
 
 ---
 
@@ -22,29 +24,71 @@ Tracing makes all those middle steps visible.
 
 ---
 
-## 2. Industry Tools (LangSmith)
+## 2. Professional Tracing: LangSmith
 
-The most popular tool for this is **LangSmith**. It automatically records every part of your LangChain or LangGraph flow.
+[LangSmith](https://smith.langchain.com/) is a platform for building production-grade LLM applications. It allows you to debug, test, evaluate, and monitor chains and intelligent agents built on any LLM framework.
 
-**What you see in a trace**:
+### Why use LangSmith?
 
-- The exact **System Prompt** used.
-- The raw **JSON** from the model.
-- The **Latency** (how long it took) of each node.
-- The **Cost** (number of tokens) for each call.
+- **Visual Debugging**: See the exact sequence of events in a graph or tree view.
+- **Prompt Inspection**: View the exact system and user prompts sent to the model (after all variables are injected).
+- **Latency Analysis**: Identify which step is slowing down your agent.
+- **Cost Tracking**: Monitor token usage across different models and runs.
+- **Dataset Creation**: Easily turn traces into testing datasets for future evaluations.
 
 ---
 
-## 🛠️ In Our Project: Terminal Logs
+## 3. Setting Up LangSmith
 
-Since we are building this locally, we use **Terminal Logs** as our simple tracing tool.
+To enable tracing in our project, you only need to set a few environment variables. No code changes are typically required if you are using LangChain or LangGraph.
 
-**In the terminal (`docker` logs):**
-You can see lines like:
-`INFO:src.graph:Supervisor decided to route to: order_agent`
-`INFO:httpx:HTTP Request: POST ... gemini ... 200 OK`
+### Step 1: Get an API Key
 
-These logs are "Mini-Traces" that help us debug when the agents act unexpectedly.
+Sign up at [smith.langchain.com](https://smith.langchain.com/) and create a new API key in the settings.
+
+### Step 2: Configure Environment Variables
+
+Add these to your `.env` file or export them in your terminal:
+
+```bash
+export LANGCHAIN_TRACING_V2=true
+export LANGCHAIN_API_KEY="ls__..."
+export LANGCHAIN_PROJECT="ai-agent-tutorial" # Optional: Give your project a name
+```
+
+---
+
+## 4. Reading a Trace
+
+When you open a trace in LangSmith, you'll see a hierarchy of "Runs":
+
+1. **The Root Run**: The overall entry point (e.g., your LangGraph app).
+2. **Child Runs**: Individual nodes (Supervisor, Order Agent, etc.).
+3. **Grandchild Runs**: Tool calls or specific LLM invocations.
+
+### What to look for
+
+- **Inputs/Outputs**: Are they what you expected? If a tool failed, was it because of the input it received?
+- **Metadata**: See the model version, temperature, and other config used for that specific call.
+- **Error Logs**: If a run failed, the stack trace is captured directly in the UI.
+
+---
+
+## 🛠️ Tracing in Our Project
+
+In our e-commerce project, tracing allows us to answer questions like:
+
+- *"Why did the Supervisor send this request to the Order Agent instead of the Product Agent?"*
+- *"What exact SQL query did the `search_products` tool generate?"*
+
+### Comparison: Terminal vs. LangSmith
+
+| Feature | Terminal Logs | LangSmith |
+| :--- | :--- | :--- |
+| **Readability** | Hard (scrolling text) | Easy (collapsible tree) |
+| **Prompt Depth** | Limited | Full System + User view |
+| **History** | Gone when terminal closes | Persistent and searchable |
+| **Collaboration** | None | Shareable links for teams |
 
 ---
 
