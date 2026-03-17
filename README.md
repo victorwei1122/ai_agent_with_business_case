@@ -84,7 +84,7 @@ Unlike traditional linear routers, our **Team Lead Supervisor** uses a circular 
 2. **Launch the System**:
 
     ```bash
-    docker-compose up --build
+    docker compose up --build
     ```
 
 3. **Access the App**:
