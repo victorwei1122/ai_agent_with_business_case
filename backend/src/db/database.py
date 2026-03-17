@@ -4,7 +4,15 @@ from sqlalchemy.orm import sessionmaker
 import os
 
 # Read from environment strictly for PostgreSQL, fallback to sqlite for local dev/testing
-SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./ecommerce.db")
+# Find database path in common locations
+def get_db_path():
+    paths = ["ecommerce.db", "backend/ecommerce.db", "../ecommerce.db"]
+    for p in paths:
+        if os.path.exists(p):
+            return f"sqlite:///{os.path.abspath(p)}"
+    return "sqlite:///./ecommerce.db"
+
+SQLALCHEMY_DATABASE_URL = os.environ.get("DATABASE_URL", get_db_path())
 
 # Create the SQLAlchemy engine
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):

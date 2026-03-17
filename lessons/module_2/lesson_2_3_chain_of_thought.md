@@ -43,9 +43,31 @@ The **Supervisor** performs mental reasoning to route requests.
 - **User Question**: *"Is the SoundMax headphones your best seller?"*
 - **Reasoning**: The user is asking about a specific product's popularity. The **Order Agent** has the `db_get_sales_analytics` tool, so I should route there.
 
-### 3. UI Representation
+### 3. Dynamic UI Representation
 
-In our terminal logs and UI, we explicitly show the agent's thought process (e.g., `💭 Think: Calling lookup_order...`). This makes the inner workings of the LLM transparent to the developer and user.
+In our ShopSmart demo app, we've implemented a **"View Thought Process"** feature. This allows users (and developers) to see the hidden reasoning steps the agent took before arriving at the final answer.
+
+**How it looks in the code:**
+When an agent is thinking, it populates a `thoughts` list that is sent to the frontend.
+
+```tsx
+{msg.thoughts && msg.thoughts.length > 0 && (
+  <details className="group">
+    <summary>View Thought Process</summary>
+    <div className="thought-list">
+      {msg.thoughts.map((thought, i) => (
+        <p key={i}>💭 {thought}</p>
+      ))}
+    </div>
+  </details>
+)}
+```
+
+This transparency is crucial for:
+
+- **Debugging**: Seeing why an agent chose a specific tool.
+- **Trust**: Showing the user that the AI is performing logical steps, not just guessing.
+- **Demoing**: Proving the "Agentic" nature of the system.
 
 ---
 

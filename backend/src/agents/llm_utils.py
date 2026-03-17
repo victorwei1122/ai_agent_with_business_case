@@ -21,8 +21,12 @@ def get_llm(model=None, temperature=0):
 
     try:
         config = {}
-        if os.path.exists("config.yml"):
-            with open("config.yml", "r") as f:
+        # Try multiple locations for config.yml
+        config_paths = ["config.yml", "../config.yml", "backend/config.yml"]
+        config_file = next((p for p in config_paths if os.path.exists(p)), None)
+        
+        if config_file:
+            with open(config_file, "r") as f:
                 config = yaml.safe_load(f) or {}
                 
         provider = config.get("llm_provider", "gemini")

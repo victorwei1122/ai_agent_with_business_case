@@ -94,9 +94,10 @@ def db_get_product_reviews(product_id: str) -> Dict[str, Any]:
 
 product_tools = [db_search_products, db_get_product_reviews, vec_search_reviews]
 
-def invoke_product_agent(message: str) -> str:
+def invoke_product_agent(message: str) -> Dict[str, Any]:
     """
     Invokes the Product Agent to search for products and recommend them.
+    Returns a dict with 'response' and 'thoughts'.
     """
     # Lazy-load LLM (Set temperature=0.7 for creative recommendations)
     llm = get_llm(temperature=0.7).bind_tools(product_tools)
@@ -106,9 +107,18 @@ def invoke_product_agent(message: str) -> str:
         HumanMessage(content=message)
     ]
     
+    thoughts = []
+    
     for i in range(10):
         response = llm.invoke(messages)
         messages.append(response)
+        
+        # Capture reasoning if present
+        content = get_text_content(response)
+        if content.strip():
+            thought = content.split("Tool:")[0].split("Final Answer:")[0].strip()
+            if thought:
+                thoughts.append(thought)
         
         # EXECUTION: Handle structured tool calls
         if response.tool_calls:
@@ -126,7 +136,6 @@ def invoke_product_agent(message: str) -> str:
             continue # Go to next iteration to let model process tool results
             
         # FALLBACK: Handle text-based tool calls (common with smaller local models)
-        content = get_text_content(response)
         if '{"name":' in content:
             try:
                 # Find the JSON part
@@ -148,6 +157,9 @@ def invoke_product_agent(message: str) -> str:
             except Exception:
                 pass
                 
-        return content
+        return {"response": content, "thoughts": thoughts}
                 
-    return "I apologize, but I am having trouble recommending products right now."
+    return {
+        "response": "I apologize, but I am having trouble recommending products right now.",
+        "thoughts": thoughts
+    }

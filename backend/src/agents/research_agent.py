@@ -31,10 +31,11 @@ def get_research_tools() -> List[Any]:
         
     return tools
 
-def invoke_research_agent(message: str) -> str:
+def invoke_research_agent(message: str) -> Dict[str, Any]:
     """
     Invokes the Research Agent to perform data analysis or web searches.
     Uses pre-built toolkits from LangChain.
+    Returns a dict with 'response' and 'thoughts'.
     """
     tools = get_research_tools()
     llm = get_llm(temperature=0).bind_tools(tools)
@@ -59,10 +60,19 @@ def invoke_research_agent(message: str) -> str:
         HumanMessage(content=message)
     ]
     
+    thoughts = []
+    
     # Simple ReAct-style loop for tool execution
     for i in range(5):
         response = llm.invoke(messages)
         messages.append(response)
+        
+        # Capture reasoning if present
+        content = get_text_content(response)
+        if content.strip():
+            thought = content.split("Tool:")[0].split("Final Answer:")[0].strip()
+            if thought:
+                thoughts.append(thought)
         
         if not response.tool_calls:
             break
@@ -88,4 +98,4 @@ def invoke_research_agent(message: str) -> str:
             else:
                 messages.append(ToolMessage(content=f"Error: Tool {tool_name} not found", tool_call_id=tool_call["id"], name=tool_name))
                 
-    return get_text_content(messages[-1])
+    return {"response": get_text_content(messages[-1]), "thoughts": thoughts}

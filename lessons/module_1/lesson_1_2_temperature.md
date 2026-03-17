@@ -57,9 +57,36 @@ llm = get_llm(temperature=0.7).bind_tools(product_tools)
 
 ---
 
-## 4. The Top-P Alternative
+## 3. Guardrails for Grounding
 
-Temperature is the most important setting for controlling an agent's "personality." Use low temperature for data-heavy tasks and higher temperature for creative tasks.
+One of the biggest risks of using a high temperature (or even a low one) is **Hallucination**—when the model provides information that is not in your data but *sounds* plausible because it's in the model's parametric memory.
+
+### The "Headphone" Problem
+
+Imagine a customer asks for headphones under $100. Your store only has $150 headphones.
+
+- **Parametric Knowledge**: The model knows the *Audio-Technica ATH-M40x* exists and costs $99.
+- **External Knowledge**: Your database says you have 0 results.
+
+Without a **Guardrail**, the agent might recommend the Audio-Technicas as if they were in your store.
+
+### Implementing a Grounding Guardrail
+
+We solve this by adding specific instructions to our final synthesis node in [graph.py](../../backend/src/graph.py):
+
+```python
+system_prompt = (
+    "If you mention products NOT found in our local catalog, "
+    "you MUST explicitly state that those specific items are not "
+    "currently in our store's inventory."
+)
+```
+
+This "Guardrail" forces the model to acknowledge the source of its information, ensuring the user isn't misled.
+
+---
+
+## 4. Summary
 
 > [!WARNING]
 > **Hallucination Risk**: As temperature increases, the model is more likely to pick "random" tokens that aren't grounded in reality. Never use high temperature for code or math!

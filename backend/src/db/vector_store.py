@@ -91,3 +91,37 @@ def vec_search_reviews(query: str) -> Dict[str, Any]:
         }
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+def index_chat_turn(session_id: str, user_msg: str, agent_msg: str, thoughts: List[str] = None):
+    """
+    Indexes a single chat turn (user message + agent response) into the vector store.
+    This creates a searchable 'Memory as Knowledge' base.
+    """
+    try:
+        embeddings = get_embeddings()
+        
+        # Use a distinct collection for chat history
+        db = Chroma(
+            collection_name="chat_memory",
+            embedding_function=embeddings,
+            persist_directory=CHROMA_PATH
+        )
+        
+        # Combine user and agent messages for the document content
+        content = f"USER: {user_msg}\nAGENT: {agent_msg}"
+        if thoughts:
+            content += f"\nTHOUGHTS: {' | '.join(thoughts)}"
+            
+        metadata = {
+            "session_id": session_id,
+            "timestamp": os.getenv("CURRENT_TIME", "unknown"), # Fallback if not provided
+            "type": "chat_interaction"
+        }
+        
+        db.add_texts(
+            texts=[content],
+            metadatas=[metadata],
+            ids=[f"chat_{session_id}_{hash(content)}"]
+        )
+    except Exception as e:
+        print(f"Failed to index chat turn: {e}")

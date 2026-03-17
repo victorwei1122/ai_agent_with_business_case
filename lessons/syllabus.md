@@ -51,6 +51,7 @@ Welcome to the AI Agent Design & Development curriculum. This course is designed
 
 *Building production-grade agent workflows.*
 
+- **Lesson 5.0**: What is LangGraph? (Cycles vs. Chains)
 - **Lesson 5.1**: State Management (What the agent knows and carries)
 - **Lesson 5.2**: Decision Nodes & Routing (The Supervisor pattern)
 - **Lesson 5.3**: Multi-Agent Teams & Circular Orchestration

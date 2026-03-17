@@ -1,6 +1,6 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import traceback
 import logging
 
@@ -12,6 +12,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     sub_agent_used: str
+    thoughts: Optional[List[str]] = []
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -58,9 +59,10 @@ import traceback
 from langchain_core.messages import HumanMessage
 from src.graph import app_graph
 from src.agents.llm_utils import get_text_content
+from src.db.vector_store import index_chat_turn
 
 @app.post("/chat", response_model=ChatResponse)
-async def orchestration_endpoint(request: ChatRequest):
+async def orchestration_endpoint(request: ChatRequest, background_tasks: BackgroundTasks):
     """The main entry point using LangGraph to route to the correct agent."""
     try:
         # 1. Run the LangGraph orchestration
@@ -74,13 +76,25 @@ async def orchestration_endpoint(request: ChatRequest):
         if result and result.get("messages"):
             last_message = result["messages"][-1]
             sub_agent = result.get("next_agent", "supervisor")
+            response_text = get_text_content(last_message)
+            thoughts = result.get("thoughts", [])
+
+            # 3. Index the chat turn in the background (Memory as Knowledge)
+            background_tasks.add_task(
+                index_chat_turn,
+                session_id=thread_id,
+                user_msg=request.message,
+                agent_msg=response_text,
+                thoughts=thoughts
+            )
 
             return ChatResponse(
-                response=get_text_content(last_message),
-                sub_agent_used=sub_agent
+                response=response_text,
+                sub_agent_used=sub_agent,
+                thoughts=thoughts
             )
         else:
-            return ChatResponse(response="I'm sorry, an error occurred processing your request.", sub_agent_used="error")
+            return ChatResponse(response="I'm sorry, an error occurred processing your request.", sub_agent_used="error", thoughts=[])
             
     except Exception as e:
         traceback.print_exc()

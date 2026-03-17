@@ -6,6 +6,7 @@ type Message = {
   text: string;
   sender: 'user' | 'agent';
   subAgent?: string;
+  thoughts?: string[];
 };
 
 // Mock product data for the storefront
@@ -27,15 +28,22 @@ export default function App() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionId] = useState(() => crypto.randomUUID());
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scrollToBottom();
+    const container = chatContainerRef.current;
+    if (container) {
+      // If user is within 100px of bottom, scroll to bottom
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      if (isNearBottom) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
+    }
   }, [messages]);
 
   // Handle chat submission
@@ -60,7 +68,10 @@ export default function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: userMessage.text }),
+        body: JSON.stringify({
+          message: userMessage.text,
+          customer_id: sessionId
+        }),
       });
 
       if (!response.ok) {
@@ -74,6 +85,7 @@ export default function App() {
         text: data.response,
         sender: 'agent',
         subAgent: data.sub_agent_used,
+        thoughts: data.thoughts,
       };
 
       setMessages((prev) => [...prev, agentMessage]);
@@ -194,7 +206,10 @@ export default function App() {
           {/* Right Side: Chat App */}
           <div className="lg:w-2/3 flex flex-col h-[600px] bg-[#fafafa]">
             {/* Chat Messages */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+            <div
+              ref={chatContainerRef}
+              className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6"
+            >
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -217,6 +232,26 @@ export default function App() {
                     style={{ whiteSpace: 'pre-wrap' }}
                   >
                     {msg.text}
+
+                    {msg.thoughts && msg.thoughts.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-100">
+                        <details className="group">
+                          <summary className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-indigo-500 cursor-pointer list-none hover:text-indigo-700 transition-colors">
+                            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                            View Thought Process
+                            <svg className="w-3 h-3 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                          </summary>
+                          <div className="mt-2 space-y-2">
+                            {msg.thoughts.map((thought, i) => (
+                              <div key={i} className="flex gap-2">
+                                <span className="text-gray-400 font-serif italic text-xs">💭</span>
+                                <p className="text-xs text-gray-500 font-medium italic leading-relaxed">{thought}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -230,7 +265,7 @@ export default function App() {
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
+              <div />
             </div>
 
             {/* Chat Input */}

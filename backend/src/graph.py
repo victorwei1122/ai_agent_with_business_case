@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
     next_agent: str
+    thoughts: Annotated[Sequence[str], operator.add]
 
 def supervisor_node(state: AgentState) -> Dict:
     """
@@ -44,7 +45,7 @@ Your goal is to coordinate specialized agents to provide the best possible answe
 - NEVER name the tools or internal agent names in the final response.
 
 Respond ONLY with a JSON object:
-{"route": "order_agent" | "product_agent" | "research_agent" | "FINISH"}
+{"route": "order_agent" | "product_agent" | "research_agent" | "FINISH", "reasoning": "A short sentence explaining why you chose this path"}
 """
     
     # Set temperature=0 for deterministic routing
@@ -55,12 +56,16 @@ Respond ONLY with a JSON object:
         *messages
     ])
     
+    thoughts = []
     try:
         content = get_text_content(response)
         # Clean up the response in case it has markdown block formatting
         content = content.replace("```json", "").replace("```", "").strip()
         decision = json.loads(content)
         route = decision.get("route", "FINISH")
+        reasoning = decision.get("reasoning", "")
+        if reasoning:
+            thoughts.append(f"[Supervisor] {reasoning}")
         # Validate route
         if route not in ["order_agent", "product_agent", "research_agent", "FINISH"]:
             route = "FINISH"
@@ -69,26 +74,35 @@ Respond ONLY with a JSON object:
         route = "FINISH"
         
     logger.info(f"Supervisor decided to route to: {route}")
-    return {"next_agent": route}
+    return {"next_agent": route, "thoughts": thoughts}
 
 def order_agent_node(state: AgentState) -> Dict:
     """Invokes the Order Agent via its LangChain function."""
     user_input = state["messages"][-1].content
-    response_text = invoke_order_agent(user_input)
+    result = invoke_order_agent(user_input)
     # Prefix the response so we know which sub-agent handled it in the UI (optional, but good for demo)
-    return {"messages": [AIMessage(content=f"[From Order Agent] {response_text}")]}
+    return {
+        "messages": [AIMessage(content=f"[From Order Agent] {result['response']}")],
+        "thoughts": [f"[Order Agent] {t}" for t in result.get("thoughts", [])]
+    }
 
 def product_agent_node(state: AgentState) -> Dict:
     """Invokes the Product Agent via its LangChain function."""
     user_input = state["messages"][-1].content
-    response_text = invoke_product_agent(user_input)
-    return {"messages": [AIMessage(content=f"[From Product Agent] {response_text}")]}
+    result = invoke_product_agent(user_input)
+    return {
+        "messages": [AIMessage(content=f"[From Product Agent] {result['response']}")],
+        "thoughts": [f"[Product Agent] {t}" for t in result.get("thoughts", [])]
+    }
 
 def research_agent_node(state: AgentState) -> Dict:
     """Invokes the Research Agent via its toolkit-powered function."""
     user_input = state["messages"][-1].content
-    response_text = invoke_research_agent(user_input)
-    return {"messages": [AIMessage(content=f"[From Research Agent] {response_text}")]}
+    result = invoke_research_agent(user_input)
+    return {
+        "messages": [AIMessage(content=f"[From Research Agent] {result['response']}")],
+        "thoughts": [f"[Research Agent] {t}" for t in result.get("thoughts", [])]
+    }
 
 def final_answer_node(state: AgentState) -> Dict:
     """
@@ -101,7 +115,12 @@ def final_answer_node(state: AgentState) -> Dict:
         "You are **SmartBot**, the friendly and professional final responder for ShopSmart. "
         "Review the conversation history, which includes data gathered by specialized agents. "
         "Synthesize all findings into a single, cohesive, and helpful response for the user. "
-        "DO NOT use raw data or list previous agent names. Just give the best possible advice/answer."
+        "\n\n### GROUNDING GUARDRAIL:"
+        "\n- If you mention products that were NOT found in the local catalog (provided by product_agent), "
+        "you MUST explicitly state that those specific items are not currently in our store's inventory "
+        "but are recommended based on general knowledge or the internet."
+        "\n- ALWAYS prioritize the products that ARE in our catalog."
+        "\n- DO NOT use raw data or list previous agent names."
     )
     
     response = llm.invoke([

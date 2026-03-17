@@ -184,9 +184,10 @@ def db_create_support_ticket(order_id: str, subject: str, priority: str, descrip
     }
 
 order_tools = [db_lookup_order, db_process_refund, db_get_sales_analytics, db_list_customer_orders, db_create_support_ticket]
-def invoke_order_agent(message: str) -> str:
+def invoke_order_agent(message: str) -> Dict[str, Any]:
     """
     Invokes the Order Agent to look up orders and process refunds.
+    Returns a dict with 'response' and 'thoughts'.
     """
     # Lazy-load LLM (Explicitly set temperature=0 for accuracy)
     llm = get_llm(temperature=0).bind_tools(order_tools)
@@ -196,9 +197,20 @@ def invoke_order_agent(message: str) -> str:
         HumanMessage(content=message)
     ]
     
+    thoughts = []
+    
     for i in range(10):
         response = llm.invoke(messages)
         messages.append(response)
+        
+        # Capture reasoning if present
+        content = get_text_content(response)
+        if content.strip():
+            # If the content is just reasoning or contains reasoning
+            # We try to clean it up - usually it's a single sentence before a tool call
+            thought = content.split("Tool:")[0].split("Final Answer:")[0].strip()
+            if thought:
+                thoughts.append(thought)
         
         # EXECUTION: Handle structured tool calls
         if response.tool_calls:
@@ -216,7 +228,6 @@ def invoke_order_agent(message: str) -> str:
             continue
             
         # FALLBACK: Handle text-based tool calls
-        content = get_text_content(response)
         if '{"name":' in content:
             try:
                 start_idx = content.find('{')
@@ -236,6 +247,9 @@ def invoke_order_agent(message: str) -> str:
             except Exception:
                 pass
 
-        return content
+        return {"response": content, "thoughts": thoughts}
                 
-    return "I apologize, but I am having trouble processing your order request right now."
+    return {
+        "response": "I apologize, but I am having trouble processing your order request right now.",
+        "thoughts": thoughts
+    }

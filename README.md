@@ -156,7 +156,7 @@ The system follows a strict **Separation of Concerns**:
 
 #### **Option A: Automated Seeding (Default)**
 
-When you run `docker-compose up`, the `seeder` service automatically populates all data and then shuts down once complete. No manual action is required!
+When you run `docker compose up`, the `seeder` service automatically populates all data and then shuts down once complete. No manual action is required!
 
 #### **Option B: Force Re-seed (Docker)**
 
@@ -164,10 +164,10 @@ If you need to refresh the data while the containers are running:
 
 ```bash
 # Seed SQL Database
-docker-compose exec backend python3 src/db/seed_db.py
+docker compose exec backend python3 src/db/seed_db.py
 
 # Seed Vector Database
-docker-compose exec backend python3 src/db/seed_vector_db.py
+docker compose exec backend python3 src/db/seed_vector_db.py
 ```
 
 #### **Option B: Manual Seeding (Local)**
