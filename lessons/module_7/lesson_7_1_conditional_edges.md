@@ -19,19 +19,19 @@ A "Happy Path" is when everything goes right. A "Conditional Edge" allows you to
 
 ---
 
-## 2. Dynamic Routing based on Content
+## 2. Dynamic Routing based on State
 
-You can write a function that looks at the *text* of an agent's response to decide the next edge.
+Instead of hard-coding the next step, you can write a routing function that looks at the current **State** to decide where to go.
 
 **In our code (`backend/src/graph.py`):**
 
 ```python
-def route_after_agent(state: AgentState):
-    # If the response contains an error message, route to a help node
-    if "Error" in state["messages"][-1].content:
-        return "help_node"
-    return "supervisor"
+def route_to_agent(state: AgentState) -> str:
+    # This reads the 'next_agent' string set by the Supervisor LLM
+    return state.get("next_agent", "FINISH")
 ```
+
+This function is small but powerful. It allows the **Supervisor** (an LLM) to control the flow of the entire application just by updating a single field in the state.
 
 ---
 
