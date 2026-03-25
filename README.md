@@ -9,16 +9,23 @@ The application is built using a modern, containerized microservices architectur
 ```mermaid
 graph LR
     User([User]) --> Supervisor{Team Lead<br/>Supervisor}
-    Supervisor -->|Plan| Agents[Specialized Agents]
+    
     subgraph "The Squad"
-        Agents --> OrderAgent[Order Specialist]
-        Agents --> ProductAgent[Product Specialist]
-        Agents --> ResearchAgent[Research Specialist]
+        OrderAgent[Order Specialist]
+        ProductAgent[Product Specialist]
+        ResearchAgent[Research Specialist]
     end
+
+    Supervisor -->|Plan| OrderAgent
+    Supervisor -->|Plan| ProductAgent
+    Supervisor -->|Plan| ResearchAgent
+    
     OrderAgent -->|Gather Data| Supervisor
     ProductAgent -->|Gather Data| Supervisor
     ResearchAgent -->|Gather Data| Supervisor
+    
     Supervisor -->|Synthesize| Final([Final Answer])
+
 ```
 
 ### 🔹 1. Collective Thinking Orchestration
