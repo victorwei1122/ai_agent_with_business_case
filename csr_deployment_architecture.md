@@ -158,3 +158,40 @@ With AI applications like LangGraph, requests require both **Identity** (who the
 
 **Security Control:** To prevent catastrophic Insecure Direct Object Reference (IDOR) vulnerabilities, the backend never trusts the JSON body blindly. It intercepts both variables and queries the database: *"Does `thread_id=conv_987` securely belong to `user_id=123`?"*
 Only if mathematically validated will the backend inject the `thread_id` into the LangGraph state. Otherwise, a `403 Forbidden` is triggered, instantly halting potential cross-tenant data leaks.
+
+---
+
+## 7. Multi-Tenant Data Isolation (Defense in Depth)
+
+In a multi-tenant SaaS application, user data (e.g., banking details, AI chat histories) lives in the same shared database tables. We must guarantee that a user can *only* read or modify their own data.
+
+### 7.1 Application-Level Filtering (The Standard Approach)
+Typically, the backend extracts the `user_id` from the JWT and manually applies it to every SQL query:
+`SELECT * FROM accounts WHERE user_id = 'user_123';`
+*The Flaw:* If a tired engineer forgets the `WHERE` clause, a massive data breach occurs. This relies solely on application logic for security.
+
+### 7.2 Row-Level Security (RLS) in PostgreSQL (The Enterprise Approach)
+To achieve true "Defense in Depth", we lock down the data at the Database Engine level using Cloud SQL (PostgreSQL). We implement **Row-Level Security (RLS)**.
+
+With RLS, the database intercepts the query and enforces security policies *before* returning data. Even if a developer writes a vulnerable `SELECT * FROM accounts;`, the database will mathematically refuse to return records that do not belong to the user.
+
+#### Implementation Workflow on Cloud SQL
+1. **Enable RLS on the Table:**
+   ```sql
+   ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+   ```
+2. **Create the Universal Security Policy:**
+   We strictly define a rule that the `user_id` column of the row must match a predefined session variable.
+   ```sql
+   CREATE POLICY tenant_isolation_policy ON accounts
+       USING (user_id = current_setting('app.current_tenant')::uuid);
+   ```
+3. **The Backend Execution Flow:**
+   When the Node/FastAPI backend receives an API request, it does the following within a single atomic database transaction:
+   - Sets the database session variable using the validated JWT ID:
+     `SET LOCAL app.current_tenant = 'user_123';`
+   - Executes the developer's naive query:
+     `SELECT * FROM accounts;`
+   - *Result:* PostgreSQL automatically applies the policy, acting as if the developer wrote `WHERE user_id = 'user_123'`, returning only that specific user's data.
+
+*Director Insight:* RLS completely removes the human-error element from data isolation. If an orchestrating AI agent generates a hallucinated SQL query attempting to read the entire database, the database engine simply blocks it, protecting your entire customer base natively.
